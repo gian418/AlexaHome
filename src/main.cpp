@@ -23,7 +23,16 @@ void wifiSetup() {
   Serial.printf("[WIFI] Connecting to %s ", ssid);
   Serial.println(password);
   WiFi.begin(ssid, password);
+
   while (WiFi.status() != WL_CONNECTED) {
+    if (WiFi.status() == WL_CONNECT_FAILED) {
+      Serial.println("Nao foi possivel conectar");
+    }
+
+    if (WiFi.status() == WL_NO_SSID_AVAIL) {
+      Serial.println("O SSID informado nao foi encontrado");
+    }
+
     Serial.print(".");
     delay(1000);
   }
