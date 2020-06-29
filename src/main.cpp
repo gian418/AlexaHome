@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include "fauxmoESP.h"
 #include "BluetoothSerial.h"
+#include <SPIFFS.h>
 
 #define app1 "luz quarto"
 #define app2 "tv"
@@ -64,6 +65,99 @@ void initFauxmo() {
   });
 }
 
+void informacoesTamanhoSPIFFS() {
+  Serial.println("\nInformações ------------------------------");
+  Serial.printf("totalBytes: %u\nusedBytes: %u\nfreeBytes: %u\n",
+                  SPIFFS.totalBytes(),
+                  SPIFFS.usedBytes(),
+                  SPIFFS.totalBytes() - SPIFFS.usedBytes());
+}
+
+void listarArquivos() {
+  Serial.println("\nArquivos ---------------------------------");
+  File dir = SPIFFS.open("/");
+  File file = dir.openNextFile();
+  while (file) {
+    Serial.printf(" %s - %u bytes\n", file.name(), file.size());
+    file = dir.openNextFile();
+  }
+}
+
+void gravarArquivoTeste() {
+  Serial.println("\nGravando arquivo de teste -------------------------------");
+  File file = SPIFFS.open("/teste.txt", "a");
+  file.println("Linha 1");
+  file.printf("Linha 2");
+  file.close();
+}
+
+void lerArquivoTeste() {
+  Serial.println("\nLendo o arquivo de rede -------------------------------");
+  File file = SPIFFS.open("/rede.txt", "r");
+  Serial.printf("Nome: %s - %u bytes\n", file.name(), file.size());
+  while (file.available())
+  {
+    Serial.println(file.readStringUntil('\n'));
+  }
+  file.close();
+  
+}
+
+void excluirArquivoTeste() {
+  Serial.println("\nExcluindo Arquivo ----------------------------");
+  if (SPIFFS.remove("/teste.txt")) {
+    Serial.println("Arquivo '/teste.txt' excluído");
+  } else {
+    Serial.println("Exclusão '/teste.txt' falhou");
+  }
+}
+
+void salvarConfigWifi(String rede, String senha) {
+  Serial.println("\n--- Excluindo configuracao rede anterior para receber a nova ---");
+
+  if (SPIFFS.remove("/rede.txt")) {
+    Serial.println("Arquivo '/rede.txt' excluído");
+  } else {
+    Serial.println("Exclusão '/rede.txt' falhou. Arquivo não existe ou houve uma falha momentanea.");
+  }
+
+  Serial.println("\n--- Salvando credenciais da rede wifi ---");
+  File file = SPIFFS.open("/rede.txt", "a");
+  file.println(rede);
+  file.print(senha);
+}
+
+void carregarConfigWifi() {
+  Serial.println("\n--- Carregando config de rede e efetuando conexao ---");
+  File file = SPIFFS.open("/rede.txt", "r");
+  Serial.printf("Nome: %s - %u bytes\n", file.name(), file.size());
+
+  int i = 1;
+  while (file.available())
+  {
+    String linha = file.readStringUntil('\n');
+    linha.trim();
+    
+    if (i == 1){
+      Serial.println("REDE: " + linha);
+      ssid = linha.c_str();
+    }
+    if (i == 2){
+      Serial.println("SENHA: " + linha);
+      password = linha.c_str();
+    }
+    if (i > 2){
+      break;
+    }
+
+    i++;
+  }
+
+  file.close();
+
+  wifiSetup();
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.println();
@@ -75,9 +169,24 @@ void setup() {
   pinMode(12, OUTPUT);
   digitalWrite(12, HIGH);
 
+  if(!SPIFFS.begin(true)) {
+    Serial.println("SPIFFS: erro ao iniciar");
+  } 
+
+  informacoesTamanhoSPIFFS();
+  listarArquivos();
+  //lerArquivoTeste();
+  //excluirArquivoTeste();
+
 }
 
 void loop() {
+
+  salvarConfigWifi("Fobos", "pw@56789");
+  lerArquivoTeste();
+  carregarConfigWifi();
+  delay(100000);
+
   fauxmo.handle();
   delay(500);
 
