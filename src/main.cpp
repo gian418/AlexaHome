@@ -14,16 +14,18 @@ const char *password;
 
 const uint16_t irLedSend = 4;
 bool isEnviarSinal = false;
+bool isConfigWifi = false;
 
 IRsend irsend(irLedSend);
 fauxmoESP fauxmo;
 BluetoothSerial SerialBT;
 
-void wifiSetup() {
+void wifiSetup(String rede, String senha) {
+  Serial.printf("\nRede: %s", rede);
+  Serial.printf("\nPass: %s", senha);
   WiFi.mode(WIFI_STA);
-  Serial.printf("[WIFI] Connecting to %s ", ssid);
-  Serial.println(password);
-  WiFi.begin(ssid, password);
+  Serial.printf("\n[WIFI] Connecting to %s ", rede);
+  WiFi.begin(rede.c_str(), senha.c_str());
 
   while (WiFi.status() != WL_CONNECTED) {
     if (WiFi.status() == WL_CONNECT_FAILED) {
@@ -132,6 +134,9 @@ void carregarConfigWifi() {
   File file = SPIFFS.open("/rede.txt", "r");
   Serial.printf("Nome: %s - %u bytes\n", file.name(), file.size());
 
+  String rede = "";
+  String senha = "";
+
   int i = 1;
   while (file.available())
   {
@@ -140,11 +145,11 @@ void carregarConfigWifi() {
     
     if (i == 1){
       Serial.println("REDE: " + linha);
-      ssid = linha.c_str();
+      rede = linha;
     }
     if (i == 2){
       Serial.println("SENHA: " + linha);
-      password = linha.c_str();
+      senha = linha;
     }
     if (i > 2){
       break;
@@ -154,8 +159,8 @@ void carregarConfigWifi() {
   }
 
   file.close();
-
-  wifiSetup();
+  Serial.printf("\n>>> Rede: %s - Pass: %s", rede, senha);
+  wifiSetup(rede, senha);
 }
 
 void setup() {
@@ -178,16 +183,21 @@ void setup() {
   //lerArquivoTeste();
   //excluirArquivoTeste();
 
+  //isConfigWifi = true;
+  carregarConfigWifi();
+
 }
 
 void loop() {
 
-  salvarConfigWifi("Fobos", "pw@56789");
-  lerArquivoTeste();
-  carregarConfigWifi();
-  delay(100000);
+  
 
-  fauxmo.handle();
+  //salvarConfigWifi("Fobos", "pw@56789");
+  //lerArquivoTeste();
+  //carregarConfigWifi();
+  //delay(100000);
+
+  //fauxmo.handle();
   delay(500);
 
   if(isEnviarSinal) {
@@ -201,6 +211,7 @@ void loop() {
     SerialBT.write(Serial.read());
   }
 
+  //TODO mudar a logica pra salvar as infos em arquivo e chamar a configuracao da wifi novamente
   if(SerialBT.available()) {
     String serialBT = SerialBT.readString();
     if (serialBT.startsWith("CONW")) {
@@ -211,8 +222,11 @@ void loop() {
       senha.trim();
       ssid = rede.c_str();
       password = senha.c_str();
+
+      //const char* rede_ = rede.c_str();
+      //const char *senha_ = senha.c_str();
       
-      wifiSetup();
+      wifiSetup(rede.c_str(), senha.c_str());
       initFauxmo();
     }
     
